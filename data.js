@@ -6,6 +6,7 @@ window.CherryData = (() => {
   const date = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && !Number.isNaN(Date.parse(s)) && new Date(s).toISOString().slice(0,10) === s;
   function validate(d) {
     if (!d || d.version !== 1 || !d.settings || typeof d.settings !== 'object') throw Error('지원하지 않는 데이터 형식입니다.');
+    if (d.settings.memberCount !== undefined && (!Number.isInteger(d.settings.memberCount) || d.settings.memberCount < 0)) throw Error('총 인원은 0 이상의 정수로 입력해주세요.');
     for (const key of ['headline','intro','heroImage','hashtags','eventIntro']) if (typeof d.settings[key] !== 'string') throw Error('클럽 설정을 확인해주세요.');
     for (const key of ['participationRules','clubRules']) if (!Array.isArray(d.settings[key]) || d.settings[key].some(x => typeof x !== 'string')) throw Error('규칙은 문장 목록이어야 합니다.');
     for (const key of ['members','themes','events','records']) {
