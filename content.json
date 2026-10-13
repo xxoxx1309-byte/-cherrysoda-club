@@ -2,7 +2,7 @@
   "version": 1,
   "settings": {
     "headline": "함께 꾸민 순간을,\n한 장씩 모아요.",
-    "intro": "인물 다꾸를 좋아하는 우리들의 아지트.\n주제 커다부터 작은 이벤트까지, 함께한 시간을 기록해요.",
+    "intro": "체리소다클럽 아지트",
     "heroImage": "club-poster.jpeg",
     "hashtags": "#체리소다클럽 #체소클",
     "eventIntro": "두 달에 한 번 작은 이벤트, 그리고 함께하는 오프 모임.",
@@ -14,7 +14,7 @@
       "사전 연락 없는 기준 미달은 경고 1회, 누적 3회 시 추방"
     ],
     "clubRules": [
-      "기본 존댓말·가벼운 사담 가능",
+      "기본 존댓말·가벼운 사담",
       "취향·실력·나이·소비 금액 평가 금지",
       "사진·그림·대화 무단 공유 금지",
       "전체 호출은 운영진만 사용",
@@ -37,7 +37,7 @@
       "id": "yuki",
       "name": "유키",
       "role": "멤버",
-      "symbol": "유",
+      "symbol": "❄️",
       "bio": "",
       "instagram": "",
       "image": ""
@@ -46,7 +46,7 @@
       "id": "101",
       "name": "일오일 1o1",
       "role": "멤버",
-      "symbol": "일",
+      "symbol": "🖤",
       "bio": "",
       "instagram": "",
       "image": ""
@@ -55,7 +55,7 @@
       "id": "velvet",
       "name": "벨벳",
       "role": "멤버",
-      "symbol": "벨",
+      "symbol": "🦋",
       "bio": "",
       "instagram": "",
       "image": ""
@@ -64,7 +64,7 @@
       "id": "neulbom",
       "name": "늘봄",
       "role": "멤버",
-      "symbol": "늘",
+      "symbol": "🌼",
       "bio": "",
       "instagram": "",
       "image": ""
@@ -73,7 +73,7 @@
       "id": "jadu",
       "name": "자두",
       "role": "멤버",
-      "symbol": "자",
+      "symbol": "🍑",
       "bio": "",
       "instagram": "",
       "image": ""
@@ -82,7 +82,7 @@
       "id": "cold",
       "name": "콜다",
       "role": "멤버",
-      "symbol": "콜",
+      "symbol": "🌟",
       "bio": "",
       "instagram": "",
       "image": ""
