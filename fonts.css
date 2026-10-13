@@ -1,0 +1,5 @@
+@import url('https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/static/woff2/SUIT.css');
+@font-face{font-family:'SlowGothic';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2304-01@1.0/neurimboGothicRegular.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
+body{font-family:'SUIT',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif}
+button,input,textarea,select{font-family:inherit}
+.brand,.page-title h1,.hero h1{font-family:'SlowGothic','SUIT',sans-serif;font-weight:400;font-synthesis:none}
