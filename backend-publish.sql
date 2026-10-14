@@ -26,7 +26,7 @@ begin
   end loop;
   update public.cherry_records set deleted_at=now()
   where deleted_at is null and not exists (
-    select 1 from jsonb_array_elements(p_document->'records') r where r->>'_cloud'='true' and r->>'id'=cherry_records.id::text
+    select 1 from jsonb_array_elements(p_document->'records') item where item->>'_cloud'='true' and item->>'id'=cherry_records.id::text
   );
   select revision into current_revision from public.cherry_content where id=1;
   return current_revision;

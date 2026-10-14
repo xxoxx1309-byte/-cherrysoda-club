@@ -1,3 +1,4 @@
+begin;
 create or replace function cherry_private.publish_content(p_document jsonb,p_revision bigint) returns bigint
 language plpgsql security definer set search_path='' as $$
 declare current_revision bigint; r jsonb;
@@ -14,10 +15,12 @@ begin
   end loop;
   update public.cherry_records set deleted_at=now()
   where deleted_at is null and not exists (
-    select 1 from jsonb_array_elements(p_document->'records') r where r->>'_cloud'='true' and r->>'id'=cherry_records.id::text
+    select 1 from jsonb_array_elements(p_document->'records') item where item->>'_cloud'='true' and item->>'id'=cherry_records.id::text
   );
   select revision into current_revision from public.cherry_content where id=1;
   return current_revision;
 end; $$;
 
-alter table public.cherry_records add constraint cherry_date_range check(date between date '0001-01-01' and date '9999-12-31');
+do $$begin if not exists(select 1 from pg_constraint where conname='cherry_date_range' and conrelid='public.cherry_records'::regclass) then alter table public.cherry_records add constraint cherry_date_range check(date between date '0001-01-01' and date '9999-12-31');end if;end;$$;
+
+commit;
