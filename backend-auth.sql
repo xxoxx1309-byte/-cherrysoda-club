@@ -5,6 +5,7 @@ create function public.cherry_identity() returns jsonb language sql stable secur
 revoke all on function public.cherry_identity() from public;
 grant execute on function public.cherry_identity() to authenticated;
 alter table public.cherry_records add column deleted_at timestamptz;
+grant select(deleted_at) on public.cherry_records to anon,authenticated;
 alter policy records_read on public.cherry_records using(deleted_at is null);
 create table public.cherry_access_requests(user_id uuid primary key default auth.uid() references auth.users(id) on delete cascade,member_id text not null,created_at timestamptz not null default now());
 alter table public.cherry_access_requests enable row level security;

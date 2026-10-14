@@ -58,7 +58,7 @@ create index cherry_records_member_date on public.cherry_records(member_id,date 
 create index cherry_records_user on public.cherry_records(user_id);
 alter table public.cherry_records enable row level security;
 revoke all on public.cherry_records from anon, authenticated;
-grant select on public.cherry_records to anon, authenticated;
+grant select(id,member_id,title,date,kind,theme_id,description,images,tags,created_at) on public.cherry_records to anon, authenticated;
 grant insert, update, delete on public.cherry_records to authenticated;
 create policy records_read on public.cherry_records for select to anon, authenticated using(true);
 create policy records_insert on public.cherry_records for insert to authenticated with check (
@@ -75,7 +75,7 @@ create policy records_delete on public.cherry_records for delete to authenticate
 
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values ('cherry-images','cherry-images',true,10485760,array['image/jpeg','image/png','image/webp']);
-create policy cherry_images_read on storage.objects for select to anon, authenticated using(bucket_id='cherry-images');
+create policy cherry_images_read on storage.objects for select to authenticated using(bucket_id='cherry-images' and ((select cherry_private.is_admin()) or ((storage.foldername(name))[1]=(select auth.uid())::text and (select cherry_private.current_member()) is not null)));
 create policy cherry_images_insert on storage.objects for insert to authenticated with check(
   bucket_id='cherry-images' and (storage.foldername(name))[1]=(select auth.uid())::text
   and (select cherry_private.current_member()) is not null
