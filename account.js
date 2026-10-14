@@ -1,13 +1,26 @@
 'use strict';
 const $=id=>document.getElementById(id),{esc,safeImage}=CherryData,{client,check}=CherryCloud;
 let who=null,club=null,mine=[],editing=null,images=[],busy=false;
+let recovering=sessionStorage.getItem('cherry-password-recovery')==='1';
+function showRecovery(){
+  for(const id of ['auth-panel','profile-panel','owner-panel','record-panel','mine-panel','forgot-wrap'])$(id).hidden=true;
+  $('recovery-panel').hidden=false;
+  status('이메일 인증이 확인됐어요. 새 비밀번호를 직접 설정해주세요.');
+}
+client.auth.onAuthStateChange(event=>{
+  if(event==='PASSWORD_RECOVERY'){recovering=true;sessionStorage.setItem('cherry-password-recovery','1');showRecovery();}
+});
 function status(s){$('status').textContent=s;}
 function lock(on){busy=on;document.querySelectorAll('button,input,select,textarea').forEach(el=>el.disabled=on);}
 async function action(fn){if(busy)return;lock(true);try{await fn();}catch(e){status(e.message);}finally{lock(false);}}
 function reset(){editing=null;images=[];$('record-form').reset();$('record-date').value=CherryData.today();$('record-tags').value='#체리소다클럽 #체소클';$('form-title').textContent='새 기록';$('delete-record').hidden=true;renderPhotos();}
 function renderPhotos(){$('photos').innerHTML=images.map((im,i)=>`<div class="photo"><img src="${esc(safeImage(im))}" alt="사진 ${i+1}"><button type="button" data-photo="${i}">사진 제거</button></div>`).join('');}
 async function refresh(){
+  if(recovering){const {data,error}=await client.auth.getSession();if(error)throw error;if(data.session){showRecovery();return;}recovering=false;sessionStorage.removeItem('cherry-password-recovery');}
+  $('recovery-panel').hidden=true;
   club=(await CherryCloud.load()).data;who=await CherryCloud.identity();
+  if(recovering){showRecovery();return;}
+  $('forgot-wrap').hidden=!!who;
   $('auth-panel').hidden=!!who;$('profile-panel').hidden=!who;
   $('owner-panel').hidden=!who?.admin;$('record-panel').hidden=!who?.memberId;$('mine-panel').hidden=!who?.memberId;
   if(!who){status('로그인하면 내 기록을 올릴 수 있어요.');return;}
@@ -24,6 +37,20 @@ async function refresh(){
   status(who.memberId?'로그인됐어요. 저장한 기록은 바로 공개됩니다.':'내 닉네임을 선택해 멤버 연결을 요청해주세요.');
 }
 $('auth-form').onsubmit=e=>{e.preventDefault();action(async()=>{check(await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value}));$('password').value='';await refresh();reset();});};
+$('forgot-password').onclick=()=>action(async()=>{
+  const email=$('email');if(!email.reportValidity())return;
+  check(await client.auth.resetPasswordForEmail(email.value.trim(),{redirectTo:new URL('account.html',location.href).href}));
+  status('재설정 요청을 접수했어요. 가입된 이메일이라면 메일이 발송됩니다. 받은편지함과 스팸함을 확인해주세요.');
+});
+$('recovery-form').onsubmit=e=>{e.preventDefault();action(async()=>{
+  if(!recovering)throw Error('재설정 메일의 링크를 먼저 열어주세요.');
+  if(!$('recovery-form').reportValidity())return;
+  if($('new-password').value!==$('confirm-password').value)throw Error('새 비밀번호가 서로 다릅니다.');
+  check(await client.auth.updateUser({password:$('new-password').value}));
+  $('recovery-form').reset();recovering=false;sessionStorage.removeItem('cherry-password-recovery');
+  check(await client.auth.signOut({scope:'local'}));await refresh();
+  status('비밀번호를 변경했어요. 새 비밀번호로 로그인해주세요.');
+});};
 $('signup').onclick=()=>action(async()=>{if(!$('auth-form').reportValidity())return;const r=await client.auth.signUp({email:$('email').value.trim(),password:$('password').value,options:{emailRedirectTo:new URL('account.html',location.href).href}});if(r.error){if(/not authorized|email.*sending|rate limit/i.test(r.error.message))throw Error('가입 인증 메일 발송 설정이 아직 준비되지 않았습니다. 방장에게 알려주세요.');throw Error(r.error.message);}$('password').value='';status('가입 확인 메일을 보냈어요. 이메일의 링크를 누른 뒤 로그인해주세요.');});
 $('logout').onclick=()=>action(async()=>{check(await client.auth.signOut());who=null;editing=null;images=[];await refresh();});
 $('request-form').onsubmit=e=>{e.preventDefault();action(async()=>{check(await client.from('cherry_access_requests').upsert({user_id:who.user.id,member_id:$('claim-member').value}));status('멤버 연결을 요청했어요. 방장이 확인한 뒤 사용할 수 있습니다.');});};
