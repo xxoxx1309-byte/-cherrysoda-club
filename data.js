@@ -1,7 +1,7 @@
 'use strict';
 window.CherryData = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const safeImage = s => typeof s === 'string' && (/^(club-(poster\.jpeg|character\.png)|assets\/[a-zA-Z0-9._-]+)$/.test(s) || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) ? s : '';
+  const safeImage = s => typeof s === 'string' && (/^(club-(poster\.jpeg|character\.png)|assets\/[a-zA-Z0-9._-]+)$/.test(s) || /^https:\/\/aqessidqzmekfigbglkc\.supabase\.co\/storage\/v1\/object\/public\/cherry-images\/[a-zA-Z0-9._\/-]+$/.test(s) || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) ? s : '';
   const safeLink = s => {try {const u = new URL(s); return u.protocol === 'https:' ? u.href : '';} catch {return '';}};
   const date = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && !Number.isNaN(Date.parse(s)) && new Date(s).toISOString().slice(0,10) === s;
   function validate(d) {
