@@ -13,6 +13,9 @@ async function refresh(){
   if(!who){status('로그인하면 내 기록을 올릴 수 있어요.');return;}
   const member=club.members.find(m=>m.id===who.memberId);
   $('greeting').textContent=member?`${member.symbol||'🍒'} ${member.name}님`:'멤버 연결을 기다리고 있어요';
+  $('role-badge').textContent=who.admin?'🍒 방장':who.memberId?'☁️ 멤버':'연결 대기';
+  $('role-badge').classList.toggle('owner',!!who.admin);
+  $('role-description').textContent=who.admin?'방장 관리실에서 전체 기록·멤버·주제·이벤트를 관리할 수 있어요. 아래에서는 내 작품을 올릴 수 있어요.':who.memberId?'내 작품을 올리고 수정·삭제할 수 있어요. 저장한 작품은 전체 기록·멤버별 작품·연결한 커다에 함께 표시됩니다.':'이메일 인증 후 내 닉네임 연결을 요청해주세요. 방장이 확인하면 작품을 올릴 수 있어요.';
   $('account-note').textContent=who.user.email||'';$('admin-link').hidden=!who.admin;$('request-form').hidden=!!who.memberId;
   $('claim-member').innerHTML=club.members.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
   $('record-theme').innerHTML='<option value="">연결 안 함</option>'+club.themes.map(t=>`<option value="${esc(t.id)}">${esc(t.round)} · ${esc(t.title)}</option>`).join('');
