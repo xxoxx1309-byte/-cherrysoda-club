@@ -6,7 +6,7 @@ Apply SQL in this order on a fresh project: `backend.sql`, `backend-auth.sql`, `
 
 Keep email confirmation enabled. The private owner mapping depends on genuine verified-email ownership. A nickname request never grants membership automatically. The owner reviews requests and links the verified account to an existing member. Default Supabase SMTP can only send to organization team addresses, so custom SMTP is required before inviting the other club members. No service-role key is needed in frontend files.
 
-`verify-security.sql` checks ownership and admin access using transaction-local fixtures and rolls everything back. Member records are soft deleted; the owner can restore them from the account screen. Club content publishing checks the revision and updates its document plus managed records in one database transaction.
+`verify-security.sql` checks ownership and admin access using transaction-local fixtures and rolls everything back. `backend-delete-fix.sql` preserves private creator/admin visibility for soft deletion. Member records are soft deleted; the owner can restore them from the account screen. Club content publishing checks the revision and updates its document plus managed records in one database transaction.
 
 Public records are joined with existing JSON records, then rendered in the home page, record list, member cards, and linked theme archive. Open public pages refresh after tab focus and at 30-second intervals. Same-browser saves notify other tabs immediately.
 

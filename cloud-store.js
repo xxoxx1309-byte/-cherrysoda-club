@@ -4,7 +4,7 @@ window.CherryStore=(()=>{
   async function connect(){const role=await CherryCloud.identity();if(!role?.admin)throw Error('방장 계정으로 로그인해주세요.');ready=true;return reload();}
   async function reload(){return CherryCloud.load();}
   async function publish(data,assets,revision,progress){
-    if(!ready)throw Error('방장 로그인이 필요합니다.');
+    if(!ready)throw Error('방장 로그인이 필요합니다.');if(!(await CherryCloud.identity())?.admin){ready=false;throw Error('방장 계정으로 다시 로그인해주세요.');}
     CherryData.validate(data);
     const used=new Set([data.settings.heroImage,...data.members.map(x=>x.image),...data.themes.map(x=>x.image),...data.events.map(x=>x.image),...data.records.flatMap(x=>x.images||[])]);
     const mapping={};let i=0;
