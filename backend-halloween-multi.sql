@@ -23,7 +23,7 @@ begin
      then raise exception '미션 한 개는 1~200자로 입력해주세요'; end if;
    if (select count(distinct trim(m#>>'{}')) from jsonb_array_elements(p_payload->'missions') m)<>jsonb_array_length(p_payload->'missions')
      then raise exception '중복된 미션을 확인해주세요'; end if;
-   delete from cherry_private.halloween_missions;
+   delete from cherry_private.halloween_missions where not exists (select 1 from cherry_private.halloween_entries);
    insert into cherry_private.halloween_missions(id,label)
      select n::integer,trim(m#>>'{}') from jsonb_array_elements(p_payload->'missions') with ordinality as x(m,n);
  elsif p_action='append_missions' then
