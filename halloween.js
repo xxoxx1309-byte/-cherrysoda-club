@@ -4,7 +4,7 @@
  let who=null,state=null,club=null,image='',busy=false,dirty=false;
  const names=id=>club?.members.find(m=>m.id===id)?.name||'탈퇴 멤버';
  const photo=src=>/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(src||'')?src:'';
- const status=message=>{$('status').textContent=message;};
+ const status=message=>{$('status').textContent=message;const inline=$('upload-status');if(inline)inline.textContent=message;};
  function lock(on){busy=on;document.querySelectorAll('button,input,select,textarea').forEach(el=>el.disabled=on);if(!on&&state)applyPhase();}
  async function action(fn){if(busy)return;lock(true);try{await fn();}catch(e){status(e.message||'처리하지 못했어요. 다시 확인해주세요.');}finally{lock(false);}}
  async function rpc(action='state',payload={}){
@@ -70,16 +70,48 @@
  $('mission-list').oninput=()=>{dirty=true;};
  $('mission-form').onsubmit=e=>{e.preventDefault();const missions=$('mission-list').value.split(/\r?\n/).map(m=>m.trim()).filter(Boolean);action(async()=>{state=await rpc('configure_missions',{missions});render();status('직접 작성한 미션을 저장했어요. 참여자가 무작위로 한 개씩 받을 수 있습니다.');});};
  $('title').oninput=()=>{dirty=true;};$('anonymous-check').onchange=()=>{dirty=true;};
- $('file').onchange=()=>action(async()=>{
+ async function preparePhoto(file){
+  if(!file)throw Error('완성 사진을 선택해주세요.');
+  if(file.size>10485760)throw Error('사진은 10MB 이하로 선택해주세요.');
+  const mime=String(file.type||'').toLowerCase();
+  const validMime=['image/png','image/jpeg','image/jpg','image/webp'].includes(mime);
+  const emptyMime=!mime||mime==='application/octet-stream';
+  if(!validMime&&!(emptyMime&&/\.(jpe?g|png|webp)$/i.test(file.name||'')))throw Error('PNG·JPG·WEBP 사진을 선택해주세요. HEIC 사진은 JPG로 변환해주세요.');
+  // FileReader + Image works in in-app browsers without createImageBitmap.
+  const source=await new Promise((resolve,reject)=>{
+   const reader=new FileReader(),timer=setTimeout(()=>{reader.abort();reject(Error('사진을 읽는 데 시간이 걸려요. 사진을 다시 선택하거나 외부 브라우저로 열어주세요.'));},15000);
+   reader.onload=()=>{clearTimeout(timer);resolve(reader.result);};
+   reader.onerror=reader.onabort=()=>{clearTimeout(timer);reject(Error('사진을 읽지 못했어요. 기기에 저장한 사진을 다시 선택해주세요.'));};
+   reader.readAsDataURL(file);
+  });
+  const decoded=await new Promise((resolve,reject)=>{
+   const im=new Image(),timer=setTimeout(()=>{im.src='';reject(Error('사진을 여는 데 시간이 걸려요. JPG 사진으로 다시 선택해주세요.'));},15000);
+   im.onload=()=>{clearTimeout(timer);resolve(im);};
+   im.onerror=()=>{clearTimeout(timer);reject(Error('이 사진을 열 수 없어요. JPG·PNG 사진으로 다시 선택해주세요.'));};
+   im.src=source;
+  });
+  const width=decoded.naturalWidth||decoded.width,height=decoded.naturalHeight||decoded.height;
+  if(!width||!height)throw Error('사진 크기를 확인할 수 없어요. 다른 사진으로 다시 선택해주세요.');
+  const scale=Math.min(1,1600/Math.max(width,height)),canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(width*scale));canvas.height=Math.max(1,Math.round(height*scale));
+  const ctx=canvas.getContext('2d');if(!ctx)throw Error('사진 처리 기능을 사용할 수 없어요. 외부 브라우저로 열어주세요.');
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(decoded,0,0,canvas.width,canvas.height);
+  let encoded='';
+  for(const quality of [.85,.7,.55]){encoded=canvas.toDataURL('image/jpeg',quality);if(encoded.length<=2000000)break;}
+  if(!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(encoded))throw Error('사진 변환을 완료하지 못했어요. 다른 사진을 선택해주세요.');
+  if(encoded.length>2000000)throw Error('사진 용량이 커요. 크기를 줄인 뒤 다시 선택해주세요.');
+  return encoded;
+ }
+ $('file').onchange=()=>{
   const file=$('file').files[0];if(!file)return;
-  if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>10485760){$('file').value='';throw Error('10MB 이하의 PNG·JPG·WEBP 사진을 선택해주세요.');}
-  status('사진을 준비하고 있어요…');const bitmap=await createImageBitmap(file);
-  try{const scale=Math.min(1,1600/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
-   let encoded=canvas.toDataURL('image/webp',.85);if(encoded.length>2000000)encoded=canvas.toDataURL('image/webp',.6);if(encoded.length>2000000)throw Error('사진 용량이 커요. 크기를 줄인 뒤 다시 선택해주세요.');
-   image=encoded;dirty=true;$('photo-preview').src=image;$('photo-preview').hidden=false;status('사진이 준비됐어요. 아래 제출 버튼을 눌러야 접수됩니다.');
-  }finally{bitmap.close();$('file').value='';}
- });
- $('submit-form').onsubmit=e=>{e.preventDefault();action(async()=>{if(!image)throw Error('완성 사진을 선택해주세요.');state=await rpc('submit',{entry:state.mine.id,title:$('title').value.trim(),image});render();status('✓ 작품을 접수했어요! 추가 미션 받기로 계속 참여하거나, 추리 시작 전까지 제출 내용을 수정할 수 있어요.');});};
+  action(async()=>{
+   image='';$('photo-preview').hidden=true;$('photo-preview').removeAttribute('src');dirty=true;
+   status('사진을 준비하고 있어요… 미리보기가 나타날 때까지 잠시 기다려주세요.');
+   try{image=await preparePhoto(file);$('photo-preview').src=image;$('photo-preview').hidden=false;status('✓ 사진 준비 완료! 확인란에 체크하고 아래 제출 버튼을 눌러주세요.');}
+   finally{$('file').value='';}
+  });
+ };
+ $('submit-form').onsubmit=e=>{e.preventDefault();action(async()=>{if(!image)throw Error('사진을 다시 선택하고, 미리보기가 나타난 뒤 제출해주세요.');status('작품을 제출하고 있어요… 잠시 기다려주세요.');state=await rpc('submit',{entry:state.mine.id,title:$('title').value.trim(),image});render();status('✓ 작품을 접수했어요! 추가 미션 받기로 계속 참여하거나, 추리 시작 전까지 제출 내용을 수정할 수 있어요.');});};
  $('withdraw').onclick=()=>{if(!confirm('제출한 사진과 제목을 삭제할까요? 미션은 유지되며 접수 기간에 다시 제출할 수 있어요.'))return;action(async()=>{state=await rpc('withdraw',{entry:state.mine.id});render();status('작품 제출을 취소했어요. 배정 미션은 유지됩니다.');});};
  $('gallery').onsubmit=e=>{const form=e.target.closest('[data-guess]');if(!form)return;e.preventDefault();const fields=new FormData(form);action(async()=>{const next=await rpc('guess',{entry:form.dataset.guess,author:fields.get('author'),mission:Number(fields.get('mission'))});state=next;form.querySelector('button').textContent='추리 수정 저장';let saved=form.querySelector('.saved');if(!saved){saved=document.createElement('span');saved.className='saved';form.querySelector('.actions').append(saved);}saved.textContent='✓ 저장된 추리';status('추리를 저장했어요. 정체 공개 전까지 수정할 수 있어요.');});};
  const zoom=id=>{const e=state?.gallery.find(e=>e.id===id);if(e){$('zoom-image').src=photo(e.image);$('zoom').showModal();}};
