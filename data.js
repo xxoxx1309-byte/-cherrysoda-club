@@ -3,6 +3,7 @@ window.CherryData = (() => {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const safeImage = s => typeof s === 'string' && (/^(club-(poster\.jpeg|character\.png)|assets\/[a-zA-Z0-9._-]+)$/.test(s) || /^https:\/\/aqessidqzmekfigbglkc\.supabase\.co\/storage\/v1\/object\/public\/cherry-images\/[a-zA-Z0-9._\/-]+$/.test(s) || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) ? s : '';
   const safeLink = s => {try {const u = new URL(s); return u.protocol === 'https:' ? u.href : '';} catch {return '';}};
+  const safeMusicLink = s => {try {if(typeof s!=='string'||s.length>2048)return '';const u=new URL(s.trim());return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com','youtu.be','open.spotify.com','spotify.link'].includes(u.hostname)&&u.pathname.length>1 ? u.href : '';}catch{return '';}};
   const date = s => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && !Number.isNaN(Date.parse(s)) && new Date(s).toISOString().slice(0,10) === s;
   function validate(d) {
     if (!d || d.version !== 1 || !d.settings || typeof d.settings !== 'object') throw Error('지원하지 않는 데이터 형식입니다.');
@@ -21,6 +22,7 @@ window.CherryData = (() => {
         if (key === 'records' && (!date(x.date) || !['theme','free','meetup'].includes(x.kind) || !d.members.some(m=>m.id===x.memberId))) throw Error('기록 날짜·종류·작성 멤버를 확인해주세요.');
         if (key === 'records' && x.themeId && !d.themes.some(t=>t.id===x.themeId)) throw Error('기록에 연결된 커다를 확인해주세요.');
         if (key === 'records' && (!Array.isArray(x.images) || x.images.some(im=>!safeImage(im)))) throw Error('기록 사진 형식을 확인해주세요.');
+        if (key === 'records' && x.musicUrl && !safeMusicLink(x.musicUrl)) throw Error('브금은 유튜브 또는 스포티파이의 https:// 링크를 입력해주세요.');
         if (x.image && !safeImage(x.image)) throw Error('이미지 파일 형식을 확인해주세요.');
       }
     }
@@ -29,5 +31,5 @@ window.CherryData = (() => {
   }
   const today = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const themeStatus = t => t.start > today() ? '예정' : t.end < today() ? '완료' : '진행 중';
-  return {esc,safeImage,safeLink,validate,today,themeStatus};
+  return {esc,safeImage,safeLink,safeMusicLink,validate,today,themeStatus};
 })();
