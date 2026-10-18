@@ -1,10 +1,10 @@
 'use strict';
 (() => {
  const $=id=>document.getElementById(id),esc=CherryData.esc,client=CherryCloud.client;
- let who=null,state=null,club=null,image='',busy=false,dirty=false;
+ let who=null,state=null,club=null,image='',busy=false,dirty=false,ownerEntry=null,ownerImage='',ownerDirty=false;
  const names=id=>club?.members.find(m=>m.id===id)?.name||'탈퇴 멤버';
  const photo=src=>/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(src||'')?src:'';
- const status=message=>{$('status').textContent=message;const inline=$('upload-status');if(inline)inline.textContent=message;};
+ const status=message=>{$('status').textContent=message;const inline=$('upload-status');if(inline)inline.textContent=message;const ownerStatus=$('owner-work-status');if(ownerStatus)ownerStatus.textContent=message;};
  function lock(on){busy=on;document.querySelectorAll('button,input,select,textarea').forEach(el=>el.disabled=on);if(!on&&state)applyPhase();}
  async function action(fn){if(busy)return;lock(true);try{await fn();}catch(e){status(e.message||'처리하지 못했어요. 다시 확인해주세요.');}finally{lock(false);}}
  async function rpc(action='state',payload={}){
@@ -13,6 +13,7 @@
   return data;
  }
  function applyPhase(){
+  $('owner-work-save').disabled=!ownerEntry?.canEdit;$('owner-work-title').disabled=!ownerEntry?.canEdit;$('owner-work-file').disabled=!ownerEntry?.canEdit;
   const closed=state.phase!=='collecting';
   $('submit-form').querySelectorAll('input,button').forEach(el=>el.disabled=closed);
   $('submit').textContent=closed?'접수 마감':state.mine?.submitted?'수정한 작품 저장':'익명 작품 제출';
@@ -27,6 +28,7 @@
   $('counts').textContent=`미션 수령 ${state.joined}명 · 작품 제출 ${state.submitted}건`;
   $('join-panel').hidden=!!state.mine||state.phase!=='collecting'||!state.missionCount;$('mission-wait').hidden=state.phase!=='collecting'||!!state.missionCount;$('mine-panel').hidden=!state.mine;
   if(state.mine){$('my-entry').innerHTML=state.myEntries.map(e=>`<option value="${esc(e.id)}" ${e.id===state.mine.id?'selected':''}>${e.round}번째 미션 · ${e.submitted?'제출 완료':'진행 중'}</option>`).join('');
+   $('my-submissions').innerHTML=state.myEntries.filter(e=>e.submitted).map(e=>`<p class="actions"><span>${esc(e.round)}번째 미션 · ${esc(e.title)}</span><button type="button" data-own-edit="${esc(e.id)}">${state.phase==='collecting'?'보기·수정':'작품 보기'}</button></p>`).join('')||'<p class="muted">아직 제출한 작품이 없어요.</p>';
    $('my-progress').textContent=`내 미션 ${state.myEntries.length}개 · 제출 완료 ${state.myCompleted}개`;
    $('next-mission').hidden=state.phase!=='collecting'||state.myEntries.some(e=>!e.submitted);
    $('next-mission-note').textContent=state.phase!=='collecting'?'접수가 마감되어 추가 미션을 받을 수 없어요.':state.myEntries.some(e=>!e.submitted)?'진행 중인 미션을 제출하면 추가 미션을 받을 수 있어요.':state.canNext?'제출을 마쳤어요! 원하시면 추가 미션에 도전해주세요.':'준비된 미션이 모두 배정됐어요. 방장이 새 미션을 추가하면 다시 받을 수 있어요.';
@@ -50,6 +52,9 @@
   $('mission-scores').innerHTML=state.missionScores.length?'<table><thead><tr><th>순위</th><th>멤버</th><th>미션 완료</th></tr></thead><tbody>'+state.missionScores.map((s,i)=>{if(lastCount!==s.completed)completionRank=i+1;lastCount=s.completed;return `<tr><td>${completionRank}위</td><td>${esc(names(s.member))}</td><td>${s.completed}개</td></tr>`;}).join('')+'</tbody></table>':'<p class="muted">완료한 미션이 없어요.</p>';
   $('mission-list').value=(state.adminMissions||[]).join('\n');$('mission-edit-note').textContent=state.joined?'기존 목록은 잠겼어요. 추가 배정용 새 미션은 아래에서 등록할 수 있어요.':`등록된 미션 ${state.missionCount}개 · 미션을 저장하면 참여자가 수령할 수 있어요.`;
   $('owner-panel').hidden=!who.admin;$('next-phase').textContent=state.phase==='collecting'?'접수 마감 · 익명 추리 열기':'정체 공개 · 추리왕 발표';
+  $('owner-work-panel').hidden=!who.admin;
+  const submitted=state.adminEntries.filter(e=>e.submitted);
+  $('owner-submissions').innerHTML=submitted.length?submitted.map(e=>`<article class="card"><h3>${esc(e.title)}</h3><p class="muted">${esc(names(e.member))} · ${e.round}번째 미션</p><p>💌 ${esc(e.mission)}</p><button type="button" data-owner-entry="${esc(e.id)}">사진 보기${state.phase==='collecting'?'·수정':''}</button></article>`).join(''):'<p class="muted">아직 제출된 참가작이 없습니다.</p>';
   $('owner-entries').innerHTML='<table><thead><tr><th>멤버</th><th>회차</th><th>배정 미션</th><th>제출</th></tr></thead><tbody>'+state.adminEntries.map(e=>`<tr><td>${esc(names(e.member))}</td><td>${e.round}</td><td>${esc(e.mission)}</td><td>${e.submitted?'완료':'미제출'}</td></tr>`).join('')+'</tbody></table>';
   applyPhase();
  }
@@ -63,7 +68,12 @@
  $('login-form').onsubmit=e=>{e.preventDefault();action(async()=>{CherryCloud.check(await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value}));$('password').value='';await refresh();});};
  $('join').onclick=()=>action(async()=>{state=await rpc('join');render();status('미션을 받았어요! ‘미션 확인하기’를 눌러 혼자 확인해주세요.');});
  $('next-mission').onclick=()=>{if(dirty&&!confirm('저장하지 않은 수정 내용이 있어요. 추가 미션을 받으면 수정 내용이 사라집니다. 계속할까요?'))return;action(async()=>{state=await rpc('next_mission');render();status('추가 미션을 받았어요. 이전 제출 작품은 그대로 보관됩니다.');});};
- $('my-entry').onchange=()=>{const entry=$('my-entry').value;if(dirty&&!confirm('저장하지 않은 내용을 비우고 다른 미션을 볼까요?')){$('my-entry').value=state.mine.id;return;}action(async()=>{state=await rpc('state',{entry});render();status('선택한 미션의 제출 내역을 불러왔어요.');});};
+ function selectOwnEntry(entry){
+  if(dirty&&!confirm('저장하지 않은 내용을 비우고 다른 미션을 볼까요?')){$('my-entry').value=state.mine.id;return;}
+  action(async()=>{state=await rpc('state',{entry});render();$('submit-form').scrollIntoView({behavior:'smooth',block:'start'});status(state.phase==='collecting'?'선택한 작품의 제목이나 사진을 수정한 뒤, 확인란에 체크하고 수정한 작품 저장을 눌러주세요.':'선택한 작품을 불러왔어요. 접수 마감 후에는 수정할 수 없어요.');});
+ }
+ $('my-entry').onchange=()=>selectOwnEntry($('my-entry').value);
+ $('my-submissions').onclick=e=>{const b=e.target.closest('[data-own-edit]');if(b)selectOwnEntry(b.dataset.ownEdit);};
  $('append-mission-list').oninput=()=>{dirty=true;};
  $('append-mission-form').onsubmit=e=>{e.preventDefault();const missions=$('append-mission-list').value.split(/\r?\n/).map(m=>m.trim()).filter(Boolean);action(async()=>{state=await rpc('append_missions',{missions});$('append-mission-list').value='';render();status('새 미션을 추가했어요. 기존 배정 미션과 제출 작품은 유지됩니다.');});};
  $('show-mission').onclick=()=>{const show=$('mission').hidden;$('mission').hidden=!show;$('show-mission').textContent=show?'미션 가리기':'미션 확인하기';};
@@ -112,6 +122,43 @@
   });
  };
  $('submit-form').onsubmit=e=>{e.preventDefault();action(async()=>{if(!image)throw Error('사진을 다시 선택하고, 미리보기가 나타난 뒤 제출해주세요.');status('작품을 제출하고 있어요… 잠시 기다려주세요.');state=await rpc('submit',{entry:state.mine.id,title:$('title').value.trim(),image});render();status('✓ 작품을 접수했어요! 추가 미션 받기로 계속 참여하거나, 추리 시작 전까지 제출 내용을 수정할 수 있어요.');});};
+
+ $('owner-submissions').onclick=e=>{
+  const b=e.target.closest('[data-owner-entry]');if(!b)return;
+  if(dirty&&!confirm('작성 중인 내 작품의 미저장 내용이 있어요. 참가작 관리를 열까요?'))return;
+  action(async()=>{
+   if(!who?.admin)throw Error('방장 권한이 필요합니다.');
+   const next=await rpc('admin_entry',{entry:b.dataset.ownerEntry});ownerEntry=next.adminEntry;
+   if(!ownerEntry)throw Error('참가작을 불러오지 못했어요. 새로 확인해주세요.');
+   ownerImage=ownerEntry.image;ownerDirty=false;
+   $('owner-work-heading').textContent=names(ownerEntry.member)+' · '+ownerEntry.round+'번째 미션';
+   $('owner-work-mission').textContent='💌 '+ownerEntry.mission;
+   $('owner-work-title').value=ownerEntry.title;$('owner-work-photo').src=photo(ownerImage);$('owner-work-file').value='';
+   $('owner-work-status').textContent=ownerEntry.canEdit?'사진을 확인하고, 필요하면 제목이나 사진을 수정해 저장해주세요.':'접수가 마감되어 보기만 가능합니다.';
+   $('owner-work-dialog').showModal();applyPhase();
+  });
+ };
+ $('owner-work-title').oninput=()=>{ownerDirty=true;};
+ $('owner-work-file').onchange=()=>{
+  const file=$('owner-work-file').files[0];if(!file)return;
+  action(async()=>{if(!who?.admin||!ownerEntry?.canEdit)throw Error('현재 참가작을 수정할 수 없습니다.');status('교체할 사진을 준비하고 있어요…');
+   try{const prepared=await preparePhoto(file);ownerImage=prepared;ownerDirty=true;$('owner-work-photo').src=photo(prepared);status('새 사진이 준비됐어요. 수정 내용 저장을 눌러주세요.');}
+   finally{$('owner-work-file').value='';}
+  });
+ };
+ $('owner-work-form').onsubmit=e=>{
+  e.preventDefault();action(async()=>{
+   if(!who?.admin||!ownerEntry?.canEdit)throw Error('현재 참가작을 수정할 수 없습니다.');
+   if(!ownerImage)throw Error('사진을 확인해주세요.');
+   const next=await rpc('admin_update',{entry:ownerEntry.id,title:$('owner-work-title').value.trim(),image:ownerImage,revision:ownerEntry.revision});
+   state=next;ownerEntry=next.adminEntry;ownerDirty=false;render();status('참가작 수정 내용을 저장했어요. 제출자와 배정 미션은 유지됩니다.');
+  });
+ };
+ function closeOwnerWork(){if(busy)return;if(ownerDirty&&!confirm('저장하지 않은 수정 내용을 닫을까요?'))return;ownerDirty=false;$('owner-work-dialog').close();ownerEntry=null;ownerImage='';}
+ $('owner-work-close').onclick=closeOwnerWork;
+ $('owner-work-dialog').addEventListener('cancel',e=>{e.preventDefault();closeOwnerWork();});
+ $('owner-work-zoom').onclick=()=>{if(ownerImage){$('zoom-image').src=photo(ownerImage);$('zoom').showModal();}};
+
  $('withdraw').onclick=()=>{if(!confirm('제출한 사진과 제목을 삭제할까요? 미션은 유지되며 접수 기간에 다시 제출할 수 있어요.'))return;action(async()=>{state=await rpc('withdraw',{entry:state.mine.id});render();status('작품 제출을 취소했어요. 배정 미션은 유지됩니다.');});};
  $('gallery').onsubmit=e=>{const form=e.target.closest('[data-guess]');if(!form)return;e.preventDefault();const fields=new FormData(form);action(async()=>{const next=await rpc('guess',{entry:form.dataset.guess,author:fields.get('author'),mission:Number(fields.get('mission'))});state=next;form.querySelector('button').textContent='추리 수정 저장';let saved=form.querySelector('.saved');if(!saved){saved=document.createElement('span');saved.className='saved';form.querySelector('.actions').append(saved);}saved.textContent='✓ 저장된 추리';status('추리를 저장했어요. 정체 공개 전까지 수정할 수 있어요.');});};
  const zoom=id=>{const e=state?.gallery.find(e=>e.id===id);if(e){$('zoom-image').src=photo(e.image);$('zoom').showModal();}};
@@ -121,7 +168,7 @@
  function reload(){if(dirty&&!confirm('저장하지 않은 작성 내용이 있어요. 새로 불러올까요?'))return;action(refresh);}
  $('refresh').onclick=reload;$('retry').onclick=()=>action(refresh);
  $('copy-setup').onclick=()=>action(async()=>{if(!$('setup-sql').value)throw Error('설정 파일을 불러오지 못했어요. 다시 확인해주세요.');try{await navigator.clipboard.writeText($('setup-sql').value);status('설정 내용을 복사했어요. SQL Editor에 붙여넣고 Run을 눌러주세요.');}catch{$('setup-sql').parentElement.open=true;$('setup-sql').select();status('설정 내용을 선택했어요. Ctrl+C로 복사해주세요.');}});
- window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+ window.addEventListener('beforeunload',e=>{if(dirty||ownerDirty){e.preventDefault();e.returnValue='';}});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){$('mission').hidden=true;$('show-mission').textContent='미션 확인하기';}});
  action(refresh);
 })();
