@@ -14,8 +14,8 @@ window.CherryDraftMerge=(()=>{
    const value=pick(local.settings[key],remote.settings[key],base?.settings?.[key],['settings',key]);
    if(value===undefined)delete merged.settings[key];else merged.settings[key]=value;
   }
-  for(const section of ['members','themes','events','records']){
-   const lm=new Map(local[section].map(x=>[x.id,x])),rm=new Map(remote[section].map(x=>[x.id,x])),bm=new Map((base?.[section]||[]).map(x=>[x.id,x]));
+  for(const section of ['members','themes','events','records','categories']){
+   const lm=new Map((local[section]||[]).map(x=>[x.id,x])),rm=new Map((remote[section]||[]).map(x=>[x.id,x])),bm=new Map((base?.[section]||[]).map(x=>[x.id,x]));
    const rows=[];
    for(const id of new Set([...rm.keys(),...lm.keys()])){
     const l=lm.get(id),r=rm.get(id),b=bm.get(id);

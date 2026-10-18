@@ -10,6 +10,9 @@ window.CherryData = (() => {
     if (d.settings.memberCount !== undefined && (!Number.isInteger(d.settings.memberCount) || d.settings.memberCount < 0)) throw Error('총 인원은 0 이상의 정수로 입력해주세요.');
     for (const key of ['headline','intro','heroImage','hashtags','eventIntro']) if (typeof d.settings[key] !== 'string') throw Error('클럽 설정을 확인해주세요.');
     for (const key of ['participationRules','clubRules']) if (!Array.isArray(d.settings[key]) || d.settings[key].some(x => typeof x !== 'string')) throw Error('규칙은 문장 목록이어야 합니다.');
+    if(d.categories===undefined)d.categories=[];
+    if(!Array.isArray(d.categories)||d.categories.length>50)throw Error('카테고리 목록을 확인해주세요.');
+    const categoryNames=new Set(),categoryIds=new Set();for(const c of d.categories){if(!c||typeof c.id!=='string'||c.id.length>100||!/^[a-zA-Z0-9_-]+$/.test(c.id)||categoryIds.has(c.id)||typeof c.name!=='string'||!c.name.trim()||c.name.length>40)throw Error('카테고리 이름은 1~40자이며 ID가 중복되면 안 됩니다.');if(categoryNames.has(c.name.trim().toLowerCase()))throw Error('카테고리 이름이 중복됩니다.');categoryNames.add(c.name.trim().toLowerCase());categoryIds.add(c.id);}
     for (const key of ['members','themes','events','records']) {
       if (!Array.isArray(d[key])) throw Error('내용 목록을 확인해주세요.');
       const ids = new Set();
@@ -22,6 +25,7 @@ window.CherryData = (() => {
         if (key === 'records' && (!date(x.date) || !['theme','free','meetup'].includes(x.kind) || !d.members.some(m=>m.id===x.memberId))) throw Error('기록 날짜·종류·작성 멤버를 확인해주세요.');
         if (key === 'records' && x.themeId && !d.themes.some(t=>t.id===x.themeId)) throw Error('기록에 연결된 커다를 확인해주세요.');
         if (key === 'records' && (!Array.isArray(x.images) || x.images.some(im=>!safeImage(im)))) throw Error('기록 사진 형식을 확인해주세요.');
+        if (key === 'records' && x.categoryId && !categoryIds.has(x.categoryId)) throw Error('기록에 연결된 카테고리를 확인해주세요.');
         if (key === 'records' && x.musicUrl && !safeMusicLink(x.musicUrl)) throw Error('브금은 유튜브 또는 스포티파이의 https:// 링크를 입력해주세요.');
         if (x.image && !safeImage(x.image)) throw Error('이미지 파일 형식을 확인해주세요.');
       }
